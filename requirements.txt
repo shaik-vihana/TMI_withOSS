@@ -45,7 +45,7 @@ torchvision==0.17.0
 # pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
 # Alternative vector stores
-faiss-cpu==1.7.4  # For CPU - for GPU use: faiss-gpu
+faiss-cpu==1.8.0  # For CPU - for GPU use: faiss-gpu
 
 # ============================================================================
 # TEXT PROCESSING & NLP
