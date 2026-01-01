@@ -48,9 +48,9 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize PDF QA Engine: {str(e)}")
     logger.error("Please ensure:")
-    logger.error("1. llama-cpp-python is installed with GPU support")
-    logger.error("2. Model file exists at the path specified in model_config.py")
-    logger.error("3. CUDA drivers are installed (for GPU offload)")
+    logger.error("1. transformers and torch are installed")
+    logger.error("2. Model directory exists at the path specified in model_config.py")
+    logger.error("3. Model files (config.json, pytorch_model.bin, etc.) are present")
     qa_engine = None
 
 
@@ -506,16 +506,16 @@ if __name__ == '__main__':
         logger.error("PDF QA Engine could not be initialized.")
         logger.error("")
         logger.error("Please follow these steps:")
-        logger.error("1. Install llama-cpp-python with CUDA support:")
-        logger.error("   CMAKE_ARGS=\"-DLLAMA_CUBLAS=on\" pip install llama-cpp-python")
-        logger.error("2. Download a GGUF model (e.g., GPT-20B-Q4_K_M.gguf)")
-        logger.error("3. Update model_config.py with the model path")
+        logger.error("1. Ensure transformers and torch are installed:")
+        logger.error("   pip install transformers torch")
+        logger.error("2. Download the GPT-2 model using the startup script")
+        logger.error("3. Ensure model files are in the correct directory")
         logger.error("4. Run this app again")
         logger.error("="*80)
         exit(1)
 
     logger.info("="*80)
-    logger.info("PDF Q&A SYSTEM WITH 20B LLM")
+    logger.info("PDF Q&A SYSTEM WITH GPT-2")
     logger.info("="*80)
     logger.info(f"Server running at: http://localhost:5000")
     logger.info(f"Analytics: http://localhost:5000/view-log")

@@ -60,11 +60,10 @@ class PDFQAEngine:
             n_ctx: Context window size
             chroma_persist_dir: Directory for ChromaDB persistence
         """
-        if not LLAMA_CPP_AVAILABLE:
+        if not TRANSFORMERS_AVAILABLE:
             raise ImportError(
-                "llama-cpp-python is not installed.\n"
-                "Install with GPU support: CMAKE_ARGS=\"-DLLAMA_CUBLAS=on\" pip install llama-cpp-python\n"
-                "Or CPU only: pip install llama-cpp-python"
+                "transformers is not installed.\n"
+                "Install with: pip install transformers torch"
             )
 
         # Model configuration
