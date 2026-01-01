@@ -46,7 +46,7 @@ echo
 echo "[4/7] Checking dependencies..."
 
 # Quick check for key packages
-if ! python -c "import flask" 2>/dev/null || ! python -c "import fitz" 2>/dev/null; then
+if ! python -c "import flask" 2>/dev/null || ! python -c "import fitz" 2>/dev/null || ! python -c "import tqdm" 2>/dev/null; then
     echo "Installing dependencies (this may take a few minutes)..."
     pip install --upgrade pip --quiet
 
