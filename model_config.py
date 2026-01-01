@@ -212,9 +212,12 @@ def print_config():
     print(f"Model Path: {get_model_path()}")
     print(f"Model Type: {MODEL_CONFIG['model_type']}")
     print(f"Context Window: {MODEL_CONFIG['n_ctx']} tokens")
-    print(f"GPU Layers: {MODEL_CONFIG['n_gpu_layers']}")
-    print(f"Estimated VRAM: {estimate_vram_usage()} GB")
-    print(f"CPU Threads: {MODEL_CONFIG['n_threads']}")
+    if MODEL_CONFIG['model_type'] == 'gpt2':
+        print(f"Device: {MODEL_CONFIG['device']}")
+    else:
+        print(f"GPU Layers: {MODEL_CONFIG.get('n_gpu_layers', 'N/A')}")
+        print(f"Estimated VRAM: {estimate_vram_usage()} GB")
+        print(f"CPU Threads: {MODEL_CONFIG.get('n_threads', 'N/A')}")
     print(f"Max Answer Length: {MODEL_CONFIG['max_tokens']} tokens")
     print("="*80)
     print(f"Target Response Time: {INFERENCE_CONFIG['target_response_time']}s")
