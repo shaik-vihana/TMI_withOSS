@@ -143,7 +143,7 @@ def get_model_path():
     return str(model_path)
 
 def validate_model_exists():
-    """Check if model directory exists."""
+    """Check if model directory and required files exist."""
     model_path = get_model_path()
 
     if not Path(model_path).exists():
@@ -161,11 +161,19 @@ def validate_model_exists():
             f"Option 2: Manual download\n"
             f"  Visit: https://huggingface.co/openai-community/gpt2-medium\n"
             f"  Download the model files and place in ./gpt2-oss/\n\n"
-            f"Model Info:\n"
-            f"  - gpt-oss-20b: 21B params, 3.6B active (MoE)\n"
-            f"  - Memory: ~16GB RAM with MXFP4 quantization\n"
-            f"  - License: Apache 2.0 (fully permissive)\n\n"
-            f"More info: https://huggingface.co/openai/gpt-oss-20b"
+            f"See INSTALL_GPT_OSS.md for detailed instructions"
+        )
+
+    # Check for required files
+    required_files = ['config.json', 'pytorch_model.bin', 'vocab.json']
+    missing_files = [f for f in required_files if not (Path(model_path) / f).exists()]
+
+    if missing_files:
+        raise FileNotFoundError(
+            f"Model directory found but missing required files: {missing_files}\n"
+            f"Model path: {model_path}\n\n"
+            f"Please re-download the GPT-2 OSS model.\n\n"
+            f"See INSTALL_GPT_OSS.md for detailed instructions"
         )
 
     return True

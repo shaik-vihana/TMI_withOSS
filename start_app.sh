@@ -119,13 +119,6 @@ print('Model downloaded successfully!')
 else
     echo -e "${GREEN}Model found: $MODEL_PATH${NC}"
 fi
-        echo "See INSTALL_GPT_OSS.md for detailed instructions"
-        echo
-        exit 1
-    fi
-else
-    echo -e "${GREEN}Model found: $MODEL_PATH${NC}"
-fi
 echo
 
 # Verify model configuration
