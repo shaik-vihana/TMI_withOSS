@@ -11,45 +11,25 @@ from pathlib import Path
 # ============================================================================
 
 MODEL_CONFIG = {
-    # Model file path (GGUF format)
-    # OpenAI gpt-oss-20b: 21B parameters, 3.6B active (MoE)
-    # Download from: https://huggingface.co/openai/gpt-oss-20b
-    # Or use Ollama: ollama pull gpt-oss:20b
-    "model_path": os.getenv("MODEL_PATH", "models/gpt-oss-20b.gguf"),
+    # Model file path (local directory for transformers)
+    # GPT-2 Medium: 355M parameters
+    # Download from: https://huggingface.co/openai-community/gpt2-medium
+    "model_path": os.getenv("MODEL_PATH", "./gpt2-oss"),
 
     # Model type
-    "model_type": "gpt-oss",  # OpenAI gpt-oss-20b architecture
+    "model_type": "gpt2",  # GPT-2 architecture
 
     # Context window
-    "n_ctx": 4096,  # Maximum context length (tokens)
+    "n_ctx": 1024,  # GPT-2 context window
 
-    # GPU offloading (CRITICAL for 4GB VRAM)
-    # gpt-oss-20b has 21B params but only 3.6B active (MoE)
-    # Fits in 16GB RAM with MXFP4 quantization
-    # Set this based on your GPU memory:
-    # - 0: CPU only (model runs in 16GB RAM)
-    # - 10-20: Good balance for 4GB VRAM (recommended: 15)
-    # - 25-30: If you have 6GB VRAM
-    # - 40+: If you have 8GB+ VRAM
-    "n_gpu_layers": int(os.getenv("N_GPU_LAYERS", "15")),  # Offload 15 layers to GPU
-
-    # CPU threads
-    "n_threads": int(os.getenv("N_THREADS", "8")),  # Use 8 CPU cores
-
-    # Batch size
-    "n_batch": 512,  # Tokens processed in parallel
+    # GPU offloading (for transformers, use GPU if available)
+    "device": "auto",  # auto, cpu, cuda
 
     # Generation settings
-    "max_tokens": 2048,  # Maximum answer length
-    "temperature": 0.3,  # Lower = more focused, higher = more creative (0.0-1.0)
+    "max_tokens": 512,  # Maximum answer length (GPT-2 limit)
+    "temperature": 0.7,  # Lower = more focused, higher = more creative (0.0-1.0)
     "top_p": 0.9,  # Nucleus sampling
-    "top_k": 40,  # Top-k sampling
-    "repeat_penalty": 1.1,  # Penalize repetition
-
-    # Memory optimization
-    "use_mmap": True,  # Memory-map model file (saves RAM)
-    "use_mlock": False,  # Lock model in RAM (set True if you have enough RAM)
-    "low_vram": True,  # Enable for GPUs with <6GB VRAM
+    "top_k": 50,  # Top-k sampling
 }
 
 # ============================================================================
@@ -163,21 +143,24 @@ def get_model_path():
     return str(model_path)
 
 def validate_model_exists():
-    """Check if model file exists."""
+    """Check if model directory exists."""
     model_path = get_model_path()
 
     if not Path(model_path).exists():
         raise FileNotFoundError(
-            f"Model file not found: {model_path}\n\n"
-            f"Please download the OpenAI gpt-oss-20b model:\n\n"
-            f"Option 1: Using Ollama (Easiest)\n"
-            f"  ollama pull gpt-oss:20b\n"
-            f"  Model will be in: ~/.ollama/models/\n\n"
-            f"Option 2: Direct Download from HuggingFace\n"
-            f"  huggingface-cli download openai/gpt-oss-20b --include 'original/*' --local-dir models/gpt-oss-20b/\n\n"
-            f"Option 3: Using transformers (for GGUF conversion)\n"
-            f"  pip install transformers\n"
-            f"  # Then convert to GGUF format\n\n"
+            f"Model directory not found: {model_path}\n\n"
+            f"Please download the GPT-2 OSS model:\n\n"
+            f"Option 1: Using Python script\n"
+            f"  python -c \"\n"
+            f"  from transformers import GPT2LMHeadModel, GPT2Tokenizer\n"
+            f"  tokenizer = GPT2Tokenizer.from_pretrained('openai-community/gpt2-medium')\n"
+            f"  model = GPT2LMHeadModel.from_pretrained('openai-community/gpt2-medium')\n"
+            f"  tokenizer.save_pretrained('./gpt2-oss')\n"
+            f"  model.save_pretrained('./gpt2-oss')\n"
+            f"  \"\n\n"
+            f"Option 2: Manual download\n"
+            f"  Visit: https://huggingface.co/openai-community/gpt2-medium\n"
+            f"  Download the model files and place in ./gpt2-oss/\n\n"
             f"Model Info:\n"
             f"  - gpt-oss-20b: 21B params, 3.6B active (MoE)\n"
             f"  - Memory: ~16GB RAM with MXFP4 quantization\n"

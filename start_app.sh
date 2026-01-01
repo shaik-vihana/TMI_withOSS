@@ -81,73 +81,44 @@ fi
 echo
 
 # Check if model exists
-echo "[6/7] Checking for gpt-oss-20b model..."
-MODEL_PATH=$(python -c "from model_config import get_model_path; print(get_model_path())" 2>/dev/null || echo "models/gpt-oss-20b.gguf")
+echo "[6/7] Checking for GPT-2 OSS model..."
+MODEL_PATH=$(python -c "from model_config import get_model_path; print(get_model_path())" 2>/dev/null || echo "./gpt2-oss")
 
-if [ ! -f "$MODEL_PATH" ]; then
+if [ ! -d "$MODEL_PATH" ]; then
     echo
     echo "========================================================================"
-    echo -e "${YELLOW}WARNING: gpt-oss-20b model not found${NC}"
+    echo -e "${YELLOW}WARNING: GPT-2 OSS model not found${NC}"
     echo "========================================================================"
     echo
     echo "Model path: $MODEL_PATH"
     echo
 
-    if [ "$OLLAMA_AVAILABLE" = true ]; then
-        echo "You can download the model using Ollama (easiest method):"
+    echo "Downloading GPT-2 OSS model using transformers..."
+    echo
+    python -c "
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
+print('Downloading GPT-2 OSS model...')
+tokenizer = GPT2Tokenizer.from_pretrained('openai-community/gpt2-medium')
+model = GPT2LMHeadModel.from_pretrained('openai-community/gpt2-medium')
+print('Saving model locally...')
+tokenizer.save_pretrained('./gpt2-oss')
+model.save_pretrained('./gpt2-oss')
+print('Model downloaded successfully!')
+"
+
+    if [ $? -eq 0 ]; then
         echo
-        read -p "Download gpt-oss:20b via Ollama now? (y/n): " download
-
-        if [[ "$download" == "y" || "$download" == "Y" ]]; then
-            echo
-            echo "Downloading gpt-oss-20b model..."
-            echo "This may take 5-10 minutes depending on your internet speed."
-            echo
-            ollama pull gpt-oss:20b
-
-            if [ $? -eq 0 ]; then
-                echo
-                echo -e "${GREEN}Model downloaded successfully!${NC}"
-                echo
-
-                # Create symlink
-                OLLAMA_BLOB=$(ls -t ~/.ollama/models/blobs/sha256-* 2>/dev/null | head -1)
-                if [ -n "$OLLAMA_BLOB" ]; then
-                    mkdir -p models
-                    ln -sf "$OLLAMA_BLOB" models/gpt-oss-20b.gguf
-                    echo "Created symlink: models/gpt-oss-20b.gguf -> $OLLAMA_BLOB"
-                fi
-            else
-                echo
-                echo -e "${RED}Failed to download model${NC}"
-                echo "Please see INSTALL_GPT_OSS.md for manual installation"
-                exit 1
-            fi
-        else
-            echo
-            echo "Skipping model download."
-            echo
-            echo "To download the model, you can:"
-            echo "  1. Run: ollama pull gpt-oss:20b"
-            echo "  2. See INSTALL_GPT_OSS.md for other methods"
-            echo
-            echo "Application will fail to start without the model."
-            echo
-            read -p "Continue anyway? (y/n): " continue
-            if [[ "$continue" != "y" && "$continue" != "Y" ]]; then
-                exit 1
-            fi
-        fi
+        echo -e "${GREEN}Model downloaded successfully!${NC}"
+        echo
     else
-        echo "Please download the model manually:"
         echo
-        echo "Option 1: Install Ollama and download model"
-        echo "  curl -fsSL https://ollama.com/install.sh | sh"
-        echo "  ollama pull gpt-oss:20b"
-        echo
-        echo "Option 2: Download from HuggingFace"
-        echo "  huggingface-cli download openai/gpt-oss-20b --include 'original/*' --local-dir models/gpt-oss-20b/"
-        echo
+        echo -e "${RED}Failed to download model${NC}"
+        echo "Please download manually from https://huggingface.co/openai-community/gpt2-medium"
+        exit 1
+    fi
+else
+    echo -e "${GREEN}Model found: $MODEL_PATH${NC}"
+fi
         echo "See INSTALL_GPT_OSS.md for detailed instructions"
         echo
         exit 1

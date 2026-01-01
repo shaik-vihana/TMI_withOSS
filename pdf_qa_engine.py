@@ -13,13 +13,14 @@ import chromadb
 from chromadb.config import Settings
 import numpy as np
 
-# Import llama-cpp-python
+# Import transformers for GPT-2
 try:
-    from llama_cpp import Llama
-    LLAMA_CPP_AVAILABLE = True
+    from transformers import GPT2LMHeadModel, GPT2Tokenizer
+    import torch
+    TRANSFORMERS_AVAILABLE = True
 except ImportError:
-    LLAMA_CPP_AVAILABLE = False
-    logging.warning("llama-cpp-python not installed. Install with: pip install llama-cpp-python")
+    TRANSFORMERS_AVAILABLE = False
+    logging.warning("transformers not installed. Install with: pip install transformers torch")
 
 # Import configuration
 from model_config import (
@@ -83,19 +84,19 @@ class PDFQAEngine:
             logger.error(str(e))
             raise
 
-        # Load LLM with GPU offloading
-        logger.info("Loading LLM (this may take 30-60 seconds)...")
-        self.llm = Llama(
-            model_path=self.model_path,
-            n_ctx=self.n_ctx,
-            n_gpu_layers=self.n_gpu_layers,
-            n_threads=MODEL_CONFIG["n_threads"],
-            n_batch=MODEL_CONFIG["n_batch"],
-            use_mmap=MODEL_CONFIG["use_mmap"],
-            use_mlock=MODEL_CONFIG["use_mlock"],
-            verbose=False
-        )
-        logger.info("LLM loaded successfully!")
+        # Load LLM with transformers
+        logger.info("Loading GPT-2 model (this may take 30-60 seconds)...")
+        self.tokenizer = GPT2Tokenizer.from_pretrained(self.model_path)
+        self.model = GPT2LMHeadModel.from_pretrained(self.model_path)
+        
+        # Set pad token
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+        
+        # Move to GPU if available
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+        
+        logger.info(f"GPT-2 model loaded successfully on {self.device}!")
 
         # Initialize ChromaDB for document storage
         self.chroma_client = chromadb.PersistentClient(
@@ -418,18 +419,18 @@ class PDFQAEngine:
 
             # Generate answer with LLM
             logger.info(f"Generating answer for: {question[:50]}...")
-            response = self.llm(
-                prompt,
-                max_tokens=MODEL_CONFIG["max_tokens"],
+            inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+            outputs = self.model.generate(
+                inputs['input_ids'],
+                max_length=inputs['input_ids'].shape[1] + MODEL_CONFIG["max_tokens"],
                 temperature=MODEL_CONFIG["temperature"],
                 top_p=MODEL_CONFIG["top_p"],
                 top_k=MODEL_CONFIG["top_k"],
-                repeat_penalty=MODEL_CONFIG["repeat_penalty"],
-                stop=["</s>", "User:", "Question:"],
-                echo=False
+                do_sample=True,
+                pad_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self.tokenizer.eos_token_id
             )
-
-            answer = response['choices'][0]['text'].strip()
+            answer = self.tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True).strip()
 
             # Calculate confidence score
             confidence = self._calculate_confidence(

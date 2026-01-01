@@ -11,20 +11,11 @@ pypdf==3.17.4  # Backup PDF library
 Pillow==10.1.0  # Image processing
 
 # ============================================================================
-# LLM INFERENCE - llama.cpp Python Bindings
+# LLM INFERENCE - Transformers for GPT-2
 # ============================================================================
 
-# Install with CUDA support for GPU offloading:
-# CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama-cpp-python --force-reinstall --no-cache-dir
-#
-# Or for CPU-only (slower):
-# pip install llama-cpp-python
-#
-# For pre-built wheels (recommended):
-llama-cpp-python==0.2.27  # Latest stable version with GGUF support
-
-# Alternative: Install with CUDA from source:
-# CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama-cpp-python==0.2.27 --force-reinstall --upgrade --no-cache-dir
+# Transformers library for GPT-2
+transformers==4.36.2  # Transformers library
 
 # ============================================================================
 # VECTOR SEARCH & EMBEDDINGS
@@ -105,11 +96,10 @@ psutil==5.9.6  # System resource monitoring
 # 2. For CPU-only (no GPU):
 #    pip install -r requirements.txt
 #
-# 3. Download GGUF model (required):
-#    - Visit: https://huggingface.co/TheBloke
-#    - Download: GPT-20B-Q4_K_M.gguf or similar quantized model
-#    - Place in: models/gpt-20b-q4_k_m.gguf
-#    - Update model_config.py with correct path
+# 3. Download GPT-2 Medium model (required):
+#    The start_app.sh script will download it automatically using transformers
+#    Model will be saved to: ./gpt2-medium/
+#    Source: https://huggingface.co/openai-community/gpt2-medium
 #
 # 4. System Requirements:
 #    - RAM: 16GB+ (model needs ~12GB)
