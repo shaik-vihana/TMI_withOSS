@@ -597,8 +597,8 @@ Instructions:
             'model_path': self.model_path,
             'n_gpu_layers': self.n_gpu_layers,
             'n_ctx': self.n_ctx,
-            'n_threads': MODEL_CONFIG['n_threads'],
-            'model_type': MODEL_CONFIG['model_type']
+            'n_threads': MODEL_CONFIG.get('n_threads', 8),
+            'model_type': MODEL_CONFIG.get('model_type', 'gpt-oss')
         }
 
 
