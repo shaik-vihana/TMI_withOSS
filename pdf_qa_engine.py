@@ -723,12 +723,31 @@ Instructions:
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get model information."""
+        # Determine actual device usage
+        device_usage = "Unknown"
+        if hasattr(self, 'pipe') and hasattr(self.pipe, 'model'):
+            if hasattr(self.pipe.model, 'hf_device_map'):
+                devices = set(self.pipe.model.hf_device_map.values())
+                # GPU devices are integers (0, 1...), CPU is 'cpu'
+                has_gpu = any(isinstance(d, int) for d in devices)
+                has_cpu = 'cpu' in devices
+                
+                if has_gpu and has_cpu:
+                    device_usage = "GPU + CPU (Hybrid)"
+                elif has_gpu:
+                    device_usage = "GPU Only"
+                else:
+                    device_usage = "CPU Only"
+            else:
+                device_usage = str(self.pipe.model.device)
+
         return {
             'model_path': self.model_path,
             'n_gpu_layers': self.n_gpu_layers,
             'n_ctx': self.n_ctx,
             'n_threads': MODEL_CONFIG.get('n_threads', 8),
-            'model_type': MODEL_CONFIG.get('model_type', 'gpt-oss')
+            'model_type': MODEL_CONFIG.get('model_type', 'gpt-oss'),
+            'device_usage': device_usage
         }
 
 
