@@ -83,22 +83,21 @@ class PDFQAEngine:
             logger.error(str(e))
             raise
 
-        # Load gpt-oss-20b with transformers pipeline API
-        logger.info("Loading gpt-oss-20b model (this may take 1-2 minutes)...")
-        logger.info("Model will be downloaded from HuggingFace on first run (~41GB)")
-        logger.info("Runtime memory usage will be ~16GB due to MXFP4 quantization")
+        # Load model with transformers pipeline API
+        logger.info(f"Loading model: {self.model_path}...")
+        logger.info("Model will be downloaded from HuggingFace on first run")
 
         try:
-            # Use the pipeline API as recommended for gpt-oss models
-            # This automatically handles the Harmony response format
+            # Use the pipeline API for efficient inference
             self.pipe = pipeline(
                 "text-generation",
                 model=self.model_path,
-                torch_dtype="auto",  # Auto dtype selection (BF16/U8 for gpt-oss)
+                torch_dtype="auto",  # Auto dtype selection
                 device_map="auto",  # Automatic CPU+GPU offloading
+                trust_remote_code=True,
             )
 
-            logger.info(f"gpt-oss-20b loaded successfully with pipeline API!")
+            logger.info(f"Model loaded successfully with pipeline API!")
             logger.info(f"Model: {self.model_path}")
 
             # Store device info if available
@@ -106,8 +105,8 @@ class PDFQAEngine:
                 logger.info(f"Device map: {self.pipe.model.hf_device_map}")
 
         except Exception as e:
-            logger.error(f"Failed to load gpt-oss-20b: {e}")
-            raise RuntimeError(f"Could not initialize gpt-oss-20b model: {e}")
+            logger.error(f"Failed to load model: {e}")
+            raise RuntimeError(f"Could not initialize model: {e}")
 
         # Initialize ChromaDB for document storage
         self.chroma_client = chromadb.PersistentClient(
@@ -425,7 +424,7 @@ class PDFQAEngine:
                     history_text += f"Q{i}: {exchange['question']}\n"
                     history_text += f"A{i}: {exchange['answer'][:150]}...\n\n"
 
-            # Build chat messages in Harmony format for gpt-oss-20b
+            # Build chat messages
             messages = self._build_chat_messages(question, context, history_text)
 
             # Generate answer with LLM using pipeline API
@@ -483,7 +482,7 @@ class PDFQAEngine:
 
     def _build_chat_messages(self, question: str, context: str, history: str = "") -> list:
         """
-        Build chat messages in Harmony format for gpt-oss-20b.
+        Build chat messages in standard chat format.
 
         Args:
             question: User question
@@ -491,7 +490,7 @@ class PDFQAEngine:
             history: Conversation history
 
         Returns:
-            List of chat messages in Harmony format
+            List of chat messages
         """
         system_message = """You are a helpful AI assistant that answers questions about documents accurately and comprehensively.
 

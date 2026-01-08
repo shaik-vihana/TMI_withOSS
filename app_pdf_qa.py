@@ -508,7 +508,7 @@ if __name__ == '__main__':
         logger.error("Please follow these steps:")
         logger.error("1. Ensure transformers and torch are installed:")
         logger.error("   pip install transformers torch")
-        logger.error("2. Download the GPT-2 model using the startup script")
+        logger.error("2. Download the model using the startup script")
         logger.error("3. Ensure model files are in the correct directory")
         logger.error("4. Run this app again")
         logger.error("="*80)
