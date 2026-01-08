@@ -13,7 +13,7 @@ from pathlib import Path
 MODEL_CONFIG = {
     # Model identifier (HuggingFace model name or local path)
     # OpenAI gpt-oss-20b: 21B total params, 3.6B active (MoE)
-    # Will be downloaded automatically from HuggingFace on first run (~16GB)
+    # Will be downloaded automatically from HuggingFace on first run
     "model_path": os.getenv("MODEL_PATH", "openai/gpt-oss-20b"),
 
     # Model type

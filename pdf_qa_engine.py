@@ -17,6 +17,16 @@ import numpy as np
 try:
     from transformers import pipeline
     import torch
+
+    # PATCH: Fix for 'module torch has no attribute xpu' error
+    # This occurs in some environments where accelerate checks for XPU support
+    if not hasattr(torch, 'xpu'):
+        class MockXPU:
+            @staticmethod
+            def is_available():
+                return False
+        torch.xpu = MockXPU
+
     TRANSFORMERS_AVAILABLE = True
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
