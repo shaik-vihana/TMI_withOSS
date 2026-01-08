@@ -515,7 +515,7 @@ if __name__ == '__main__':
         exit(1)
 
     logger.info("="*80)
-    logger.info("PDF Q&A SYSTEM WITH GPT-2")
+    logger.info("PDF Q&A SYSTEM WITH GPT-OSS-20B")
     logger.info("="*80)
     logger.info(f"Server running at: http://localhost:5000")
     logger.info(f"Analytics: http://localhost:5000/view-log")

@@ -18,6 +18,7 @@ Pillow==10.1.0  # Image processing
 transformers>=4.46.0  # Transformers library with gpt-oss support (requires >=4.46)
 accelerate>=0.25.0  # For efficient multi-GPU and CPU+GPU offloading
 tokenizers>=0.20.0  # Required for newer model formats
+kernels  # Required for gpt-oss models
 
 # ============================================================================
 # VECTOR SEARCH & EMBEDDINGS

@@ -48,7 +48,7 @@ class PDFQAEngine:
         self,
         model_path: Optional[str] = None,
         n_gpu_layers: Optional[int] = None,
-        n_ctx: int = 4096,
+        n_ctx: Optional[int] = None,
         chroma_persist_dir: str = "chroma_db"
     ):
         """
@@ -69,7 +69,7 @@ class PDFQAEngine:
         # Model configuration
         self.model_path = model_path or get_model_path()
         self.n_gpu_layers = n_gpu_layers if n_gpu_layers is not None else MODEL_CONFIG.get("n_gpu_layers", 0)
-        self.n_ctx = n_ctx
+        self.n_ctx = n_ctx if n_ctx is not None else MODEL_CONFIG["n_ctx"]
 
         logger.info(f"Initializing PDF QA Engine")
         logger.info(f"Model: {self.model_path}")

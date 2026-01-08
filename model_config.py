@@ -12,15 +12,15 @@ from pathlib import Path
 
 MODEL_CONFIG = {
     # Model identifier (HuggingFace model name or local path)
-    # Qwen 2.5 7B Instruct: High performance, fits in 16GB RAM
-    # Will be downloaded automatically from HuggingFace on first run (~15GB)
-    "model_path": os.getenv("MODEL_PATH", "Qwen/Qwen2.5-7B-Instruct"),
+    # OpenAI gpt-oss-20b: 21B total params, 3.6B active (MoE)
+    # Will be downloaded automatically from HuggingFace on first run (~16GB)
+    "model_path": os.getenv("MODEL_PATH", "openai/gpt-oss-20b"),
 
     # Model type
-    "model_type": "qwen",  # Qwen architecture
+    "model_type": "gpt-oss",  # OpenAI gpt-oss architecture (MoE)
 
     # Context window
-    "n_ctx": 8192,  # Qwen supports up to 32k
+    "n_ctx": 4096,  # gpt-oss-20b context window
 
     # GPU offloading (automatic with device_map="auto")
     # Transformers will automatically distribute layers between CPU and GPU
