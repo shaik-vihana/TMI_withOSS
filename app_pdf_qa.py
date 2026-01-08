@@ -51,6 +51,10 @@ def main():
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+            if "response_time" in message and message["response_time"] > 0:
+                st.caption(f"⏱️ {message['response_time']:.2f}s")
+            if "pages" in message and message["pages"]:
+                st.caption(f"📄 Pages: {', '.join(map(str, message['pages']))}")
 
     if prompt := st.chat_input("Ask a question about your PDF..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -61,8 +65,22 @@ def main():
             with st.spinner("Thinking..."):
                 try:
                     response = st.session_state.engine.answer_question(prompt)
-                    st.markdown(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    
+                    # Parse response
+                    answer_text = response["result"]
+                    time_taken = response["response_time"]
+                    source_docs = response["source_documents"]
+                    pages = sorted(list(set([doc.metadata.get("page", 0) + 1 for doc in source_docs]))) if source_docs else []
+
+                    st.markdown(answer_text)
+                    
+                    # Display metadata
+                    if time_taken > 0:
+                        st.caption(f"⏱️ {time_taken:.2f}s")
+                    if pages:
+                        st.caption(f"📄 Pages: {', '.join(map(str, pages))}")
+
+                    st.session_state.messages.append({"role": "assistant", "content": answer_text, "response_time": time_taken, "pages": pages})
                 except Exception as e:
                     st.error(f"Error generating response: {e}")
 

@@ -6,6 +6,7 @@ from langchain_ollama import ChatOllama
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +48,39 @@ class PDFQAEngine:
             llm=self.llm,
             chain_type="stuff",
             retriever=retriever,
-            chain_type_kwargs={"prompt": PROMPT}
+            chain_type_kwargs={"prompt": PROMPT},
+            return_source_documents=True
         )
         logger.info("PDF Ingested and QA Chain created.")
 
+    def _is_greeting(self, text):
+        greetings = ["hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening"]
+        text = text.lower().strip(" .!,")
+        return text in greetings
+
     def answer_question(self, question):
+        start_time = time.time()
+        
+        # Quick greeting check
+        if self._is_greeting(question):
+            return {
+                "result": "Hello! How can I help you with your document today?",
+                "response_time": 0.0,
+                "source_documents": []
+            }
+
         if not self.qa_chain:
-            return "Please upload and process a PDF document first."
+            return {
+                "result": "Please upload and process a PDF document first.",
+                "response_time": 0.0,
+                "source_documents": []
+            }
         
         response = self.qa_chain.invoke({"query": question})
-        return response["result"]
+        end_time = time.time()
+        
+        return {
+            "result": response["result"],
+            "response_time": end_time - start_time,
+            "source_documents": response.get("source_documents", [])
+        }
