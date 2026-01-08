@@ -64,15 +64,6 @@ if [ "$NEED_INSTALL" = true ] || ! python -c "import flask" 2>/dev/null || ! pyt
     echo "Installing dependencies (this may take a few minutes)..."
     pip install --upgrade pip --quiet
 
-    # Check if CUDA is available
-    if command -v nvidia-smi &> /dev/null; then
-        echo "NVIDIA GPU detected. Installing llama-cpp-python with CUDA support..."
-        CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama-cpp-python --force-reinstall --no-cache-dir --quiet
-    else
-        echo "No NVIDIA GPU detected. Installing CPU-only version..."
-        pip install llama-cpp-python --quiet
-    fi
-
     # Install remaining dependencies
     echo "Installing remaining packages..."
     pip install -r requirements.txt --quiet

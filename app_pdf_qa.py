@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 import time
 from datetime import datetime
+import json
 
 from pdf_processor import PDFProcessor
 from pdf_qa_engine import PDFQAEngine
@@ -32,9 +33,14 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
 
+# Define absolute paths for robustness
+BASE_DIR = Path(__file__).resolve().parent
+LOG_DIR = BASE_DIR / 'logs'
+
 # Create necessary directories
-for directory in ['uploads', 'data', 'logs', 'processed_pdfs', 'chroma_db', 'models']:
+for directory in ['uploads', 'data', 'processed_pdfs', 'chroma_db', 'models']:
     os.makedirs(directory, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
 
 # Initialize PDF QA Engine
 try:
@@ -60,7 +66,7 @@ def allowed_file(filename):
 
 def log_performance(session_id, question, answer, response_time, page_refs, confidence=0.0):
     """Log performance metrics to file with confidence and page references."""
-    log_file = Path('logs') / 'qa_performance.txt'
+    log_file = LOG_DIR / 'qa_performance.txt'
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     # Create log entry
@@ -306,6 +312,67 @@ def ask_question():
         return jsonify({'error': f'Error generating answer: {str(e)}'}), 500
 
 
+@app.route('/stream_ask', methods=['POST'])
+def stream_ask_question():
+    """Stream answer using 20B LLM (Server-Sent Events)."""
+    try:
+        if not qa_engine:
+            return jsonify({'error': 'PDF QA Engine not available'}), 500
+
+        data = request.get_json()
+        if not data or 'question' not in data:
+            return jsonify({'error': 'No question provided'}), 400
+
+        question = data['question'].strip()
+        session_id = session.get('session_id')
+        top_k = int(data.get('top_k', 5))
+        
+        if not session_id:
+            return jsonify({'error': 'No PDF uploaded'}), 400
+
+        # Get conversation history
+        conversation_history = session.get('conversation_history', [])[-5:]
+
+        def generate():
+            # Stream the response
+            start_time = time.time()
+            full_answer = ""
+            
+            # Use the engine's streaming method
+            for token in qa_engine.stream_answer_question(
+                question=question,
+                session_id=session_id,
+                top_k=top_k,
+                conversation_history=conversation_history
+            ):
+                full_answer += token
+                # Yield SSE format
+                yield f"data: {json.dumps({'token': token})}\n\n"
+            
+            # Send completion event with metadata could be added here
+            yield f"data: [DONE]\n\n"
+
+        return app.response_class(generate(), mimetype='text/event-stream')
+
+    except Exception as e:
+        logger.error(f"Error streaming answer: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/stop_generation', methods=['POST'])
+def stop_generation():
+    """Stop the current generation process."""
+    try:
+        session_id = session.get('session_id')
+        if session_id and qa_engine:
+            qa_engine.stop_generation(session_id)
+            return jsonify({'success': True, 'message': 'Generation stopped'}), 200
+        return jsonify({'error': 'No active session'}), 400
+    except Exception as e:
+        logger.error(f"Error stopping generation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/reset', methods=['POST'])
 def reset_session():
     """Reset session and cleanup."""
@@ -355,7 +422,7 @@ def health_check():
 def analytics():
     """Get analytics data."""
     try:
-        log_file = Path('logs') / 'qa_performance.txt'
+        log_file = LOG_DIR / 'qa_performance.txt'
 
         if not log_file.exists():
             return jsonify({
@@ -409,7 +476,7 @@ def analytics():
 def view_log():
     """View performance log in browser."""
     try:
-        log_file = Path('logs') / 'qa_performance.txt'
+        log_file = LOG_DIR / 'qa_performance.txt'
 
         if not log_file.exists():
             return "<h1>No logs found</h1><p>Upload a PDF and ask questions to generate logs.</p>", 200

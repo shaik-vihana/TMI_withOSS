@@ -122,9 +122,9 @@ ANALYTICS_CONFIG = {
 # ============================================================================
 
 SYSTEM_REQUIREMENTS = {
-    "ram_gb": 39,
+    "ram_gb": 40,
     "gpu_vram_gb": 4,
-    "storage_gb": 45,
+    "storage_gb": 20,
     "os": "Ubuntu 24",
 
     # Estimated memory usage (gpt-oss-20b with MXFP4 quantization)

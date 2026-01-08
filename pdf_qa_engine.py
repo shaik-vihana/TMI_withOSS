@@ -1,12 +1,17 @@
 """
 PDF QA Engine with 20B LLM (CPU+GPU Offload)
-Uses llama-cpp-python for efficient inference with GGUF models
+Uses Transformers pipeline for efficient inference with gpt-oss-20b (MoE)
 Supports multi-page answers with exact page references and confidence scores
 """
 
 import logging
 import json
 import math
+import os
+
+# Disable ChromaDB telemetry to prevent errors and hangs
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import chromadb
@@ -15,7 +20,8 @@ import numpy as np
 
 # Import transformers for gpt-oss-20b
 try:
-    from transformers import pipeline
+    from transformers import pipeline, TextIteratorStreamer, StoppingCriteria, StoppingCriteriaList
+    from threading import Thread
     import torch
 
     # PATCH: Fix for 'module torch has no attribute xpu' error
@@ -43,6 +49,14 @@ from model_config import (
 
 logger = logging.getLogger(__name__)
 
+
+class StopGenerationCriteria(StoppingCriteria):
+    """Criteria to stop generation when a flag is set."""
+    def __init__(self):
+        self.stop = False
+
+    def __call__(self, input_ids, scores, **kwargs):
+        return self.stop
 
 class PDFQAEngine:
     """
@@ -84,6 +98,7 @@ class PDFQAEngine:
         logger.info(f"Initializing PDF QA Engine")
         logger.info(f"Model: {self.model_path}")
         logger.info(f"GPU Layers: {self.n_gpu_layers}")
+        logger.info(f"GPU Layers Config: {self.n_gpu_layers} (Ignored - using device_map='auto')")
         logger.info(f"Context Window: {self.n_ctx}")
 
         # Validate model exists
@@ -135,6 +150,9 @@ class PDFQAEngine:
                 self.embedding_model = None
         else:
             self.embedding_model = None
+
+        # Track active sessions for stopping generation
+        self.active_stops = {}
 
     def create_collection(
         self,
@@ -368,6 +386,37 @@ class PDFQAEngine:
             logger.error(f"Error extracting page references: {e}")
             return "N/A"
 
+    def _is_greeting(self, text: str) -> bool:
+        """Check if the text is a simple greeting."""
+        # Normalize: lowercase and remove extra whitespace
+        text = text.lower().strip()
+        
+        greetings = {
+            "hi", "hello", "hey", "greetings", "good morning", 
+            "good afternoon", "good evening", "hi there", "hello there",
+            "yo", "hola", "howdy"
+        }
+        
+        # Check if text starts with any greeting
+        for greet in greetings:
+            # Match exact greeting or greeting followed by punctuation/space
+            if text == greet or text.startswith(f"{greet} ") or text.startswith(f"{greet}."):
+                return True
+            # Handle cases like "hi..." or "hello!!!"
+            if text.startswith(greet):
+                suffix = text[len(greet):]
+                # If the rest is just non-alphanumeric (punctuation), it's a greeting
+                if not any(c.isalnum() for c in suffix):
+                    return True
+                    
+        return False
+
+    def stop_generation(self, session_id: str):
+        """Signal to stop generation for a specific session."""
+        if session_id in self.active_stops:
+            self.active_stops[session_id].stop = True
+            logger.info(f"Stop signal received for session {session_id}")
+
     def answer_question(
         self,
         question: str,
@@ -400,6 +449,18 @@ class PDFQAEngine:
         try:
             import time
             start_time = time.time()
+
+            # Optimization: Immediate response for greetings
+            if self._is_greeting(question):
+                logger.info("Detected greeting, returning immediate response")
+                return {
+                    'answer': "Hello! I'm ready to help you with your document. Please ask me any questions about its content.",
+                    'page_references': "N/A",
+                    'confidence': 100.0,
+                    'response_time': 0.0,
+                    'pages_used': [],
+                    'images': []
+                }
 
             # Retrieve relevant pages
             relevant_pages = self._retrieve_pages(question, session_id, top_k)
@@ -440,6 +501,10 @@ class PDFQAEngine:
             # Generate answer with LLM using pipeline API
             logger.info(f"Generating answer for: {question[:50]}...")
 
+            # Setup stop criteria
+            stop_criteria = StopGenerationCriteria()
+            self.active_stops[session_id] = stop_criteria
+
             # Use the pipeline - it automatically handles Harmony format
             outputs = self.pipe(
                 messages,
@@ -447,7 +512,12 @@ class PDFQAEngine:
                 temperature=MODEL_CONFIG["temperature"],
                 top_p=MODEL_CONFIG["top_p"],
                 do_sample=True,
+                stopping_criteria=StoppingCriteriaList([stop_criteria])
             )
+
+            # Cleanup stop criteria
+            if session_id in self.active_stops:
+                del self.active_stops[session_id]
 
             # Extract the answer from pipeline output
             # Pipeline returns: [{'generated_text': [messages + generated message]}]
@@ -526,6 +596,87 @@ Instructions:
         ]
 
         return messages
+
+    def stream_answer_question(
+        self,
+        question: str,
+        session_id: str,
+        top_k: int = 5,
+        conversation_history: List[Dict] = None
+    ):
+        """
+        Stream answer token by token.
+        
+        Args:
+            question: User's question
+            session_id: Session identifier
+            top_k: Number of pages to retrieve
+            conversation_history: Previous Q&A
+            
+        Yields:
+            Generated text tokens
+        """
+        try:
+            # Optimization: Immediate response for greetings
+            if self._is_greeting(question):
+                logger.info("Detected greeting, returning immediate response")
+                yield "Hello! I'm ready to help you with your document. Please ask me any questions about its content."
+                return
+
+            # Retrieve relevant pages
+            relevant_pages = self._retrieve_pages(question, session_id, top_k)
+            
+            if not relevant_pages:
+                yield "I couldn't find relevant information in the document."
+                return
+
+            # Build context
+            context = ""
+            for page_data in relevant_pages[:top_k]:
+                if page_data['text']:
+                    context += f"\n--- Page {page_data['page']} ---\n"
+                    context += page_data['text'] + "\n"
+
+            # Build history
+            history_text = ""
+            if conversation_history:
+                for i, exchange in enumerate(conversation_history[-3:], 1):
+                    history_text += f"Q{i}: {exchange['question']}\n"
+                    history_text += f"A{i}: {exchange['answer'][:150]}...\n\n"
+
+            messages = self._build_chat_messages(question, context, history_text)
+            
+            # Setup stop criteria
+            stop_criteria = StopGenerationCriteria()
+            self.active_stops[session_id] = stop_criteria
+
+            # Setup streamer
+            streamer = TextIteratorStreamer(self.pipe.tokenizer, skip_prompt=True, skip_special_tokens=True)
+            generation_kwargs = dict(
+                text_inputs=messages,
+                max_new_tokens=MODEL_CONFIG["max_tokens"],
+                temperature=MODEL_CONFIG["temperature"],
+                top_p=MODEL_CONFIG["top_p"],
+                do_sample=True,
+                streamer=streamer,
+                stopping_criteria=StoppingCriteriaList([stop_criteria])
+            )
+
+            # Run generation in a separate thread
+            thread = Thread(target=self.pipe, kwargs=generation_kwargs)
+            thread.start()
+
+            # Yield tokens as they come
+            for new_text in streamer:
+                yield new_text
+
+        except Exception as e:
+            logger.error(f"Error streaming answer: {e}")
+            yield f"Error: {str(e)}"
+        finally:
+            # Cleanup stop criteria
+            if session_id in self.active_stops:
+                del self.active_stops[session_id]
 
     def _collect_page_images(self, session_id: str, pages: List[int]) -> List[str]:
         """

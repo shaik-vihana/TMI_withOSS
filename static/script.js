@@ -16,6 +16,8 @@ const loadingOverlay = document.getElementById('loading-overlay');
 const loadingTitle = document.getElementById('loading-title');
 const loadingText = document.getElementById('loading-text');
 
+let isGenerating = false;
+let abortController = null;
 let selectedFile = null;
 
 // Event Listeners
@@ -23,7 +25,16 @@ uploadArea.addEventListener('click', () => pdfInput.click());
 pdfInput.addEventListener('change', handleFileSelect);
 uploadBtn.addEventListener('click', uploadPDF);
 cancelBtn.addEventListener('click', cancelUpload);
-askBtn.addEventListener('click', askQuestion);
+
+// Handle Ask/Stop button click
+askBtn.addEventListener('click', () => {
+    if (isGenerating) {
+        stopGeneration();
+    } else {
+        askQuestion();
+    }
+});
+
 resetBtn.addEventListener('click', resetSession);
 questionInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -146,7 +157,14 @@ async function askQuestion() {
     // Add question to chat
     addMessageToChat(question, 'question');
     questionInput.value = '';
-    askBtn.disabled = true;
+    
+    // Change button to Stop
+    isGenerating = true;
+    askBtn.textContent = 'Stop Generating';
+    askBtn.classList.add('stop-mode'); // You can style this class in CSS to be red
+    
+    // Create abort controller for this request
+    abortController = new AbortController();
 
     showLoading('Generating Answer', 'AI is thinking...');
 
@@ -156,7 +174,8 @@ async function askQuestion() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ question })
+            body: JSON.stringify({ question }),
+            signal: abortController.signal
         });
 
         const data = await response.json();
@@ -173,18 +192,46 @@ async function askQuestion() {
             }
         }
     } catch (error) {
-        console.error('Error:', error);
-        showStatus('An error occurred while generating the answer', 'error');
-        // Remove the question from chat if answer failed
-        const lastMessage = chatHistory.lastElementChild;
-        if (lastMessage) {
-            lastMessage.remove();
+        if (error.name === 'AbortError') {
+            showStatus('Generation stopped by user', 'success');
+        } else {
+            console.error('Error:', error);
+            showStatus('An error occurred while generating the answer', 'error');
+            // Remove the question from chat if answer failed
+            const lastMessage = chatHistory.lastElementChild;
+            if (lastMessage) {
+                lastMessage.remove();
+            }
         }
     } finally {
         hideLoading();
-        askBtn.disabled = false;
+        isGenerating = false;
+        abortController = null;
+        askBtn.textContent = 'Ask Question';
+        askBtn.classList.remove('stop-mode');
         questionInput.focus();
     }
+}
+
+async function stopGeneration() {
+    if (abortController) {
+        abortController.abort(); // Stop the fetch request
+    }
+    
+    // Notify server to stop processing
+    try {
+        await fetch('/stop_generation', {
+            method: 'POST'
+        });
+    } catch (error) {
+        console.error('Error notifying server to stop:', error);
+    }
+    
+    hideLoading();
+    isGenerating = false;
+    askBtn.textContent = 'Ask Question';
+    askBtn.classList.remove('stop-mode');
+    showStatus('Generation stopped', 'success');
 }
 
 function addMessageToChat(message, type) {
