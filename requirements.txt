@@ -18,8 +18,6 @@ Pillow==10.1.0  # Image processing
 transformers>=4.46.0  # Transformers library with gpt-oss support (requires >=4.46)
 accelerate>=0.25.0  # For efficient multi-GPU and CPU+GPU offloading
 tokenizers>=0.20.0  # Required for newer model formats
-openai-harmony  # Required for gpt-oss models (Harmony response format)
-gpt-oss  # OpenAI's gpt-oss package with reference implementation
 
 # ============================================================================
 # VECTOR SEARCH & EMBEDDINGS
@@ -31,7 +29,7 @@ hnswlib==0.8.0  # Fast vector search
 pydantic==2.5.3  # Data validation
 
 # Embeddings
-sentence-transformers==2.2.2  # For semantic search
+sentence-transformers>=2.7.0  # For semantic search
 torch==2.2.0  # PyTorch (CPU version by default)
 torchvision==0.17.0  # Vision utilities
 
@@ -46,15 +44,15 @@ faiss-cpu==1.8.0  # For CPU - for GPU use: faiss-gpu
 # ============================================================================
 
 # Text chunking and processing
-tiktoken==0.5.2  # Token counting for GPT models
-langchain==0.1.0  # Document processing utilities
-langchain-community==0.0.10  # Community extensions
+tiktoken>=0.5.2  # Token counting for GPT models
+langchain>=0.1.0  # Document processing utilities
+langchain-community>=0.0.10  # Community extensions
 
 # ============================================================================
 # UTILITIES
 # ============================================================================
 
-numpy==1.26.2  # Numerical operations
+numpy>=1.26.2  # Numerical operations
 scipy==1.11.4  # Scientific computing
 tqdm==4.66.1  # Progress bars
 python-dotenv==1.0.0  # Environment variables
