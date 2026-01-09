@@ -12,9 +12,16 @@ class StreamHandler(BaseCallbackHandler):
     def __init__(self, container, initial_text=""):
         self.container = container
         self.text = initial_text
+        self.token_count = 0
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         self.text += token
+        self.token_count += 1
+        # Add cursor effect for smoother appearance
+        self.container.markdown(self.text + "▌")
+
+    def on_llm_end(self, _response, **_kwargs) -> None:
+        # Remove cursor when done
         self.container.markdown(self.text)
 
 def main():
@@ -77,32 +84,34 @@ def main():
             st.caption(f"🕒 Sent: {current_time}")
 
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    message_placeholder = st.empty()
-                    stream_handler = StreamHandler(message_placeholder)
+            try:
+                message_placeholder = st.empty()
+                stream_handler = StreamHandler(message_placeholder)
+
+                # Show thinking indicator only for initial retrieval
+                with st.spinner("Retrieving relevant context..."):
                     response = st.session_state.engine.answer_question(prompt, callbacks=[stream_handler])
-                    
-                    # Parse response
-                    answer_text = response["result"]
-                    time_taken = response["response_time"]
-                    source_docs = response["source_documents"]
-                    pages = sorted(list(set([doc.metadata.get("page", 0) + 1 for doc in source_docs]))) if source_docs else []
 
-                    # Ensure final text is displayed (handles greetings/non-streaming cases)
-                    message_placeholder.markdown(answer_text)
-                    
-                    current_time = datetime.now().strftime("%H:%M:%S")
-                    # Display metadata
-                    st.caption(f"🕒 Sent: {current_time}")
-                    if time_taken > 0:
-                        st.caption(f"⏱️ Response time: {time_taken:.2f}s")
-                    if pages:
-                        st.caption(f"📄 Pages: {', '.join(map(str, pages))}")
+                # Parse response
+                answer_text = response["result"]
+                time_taken = response["response_time"]
+                source_docs = response["source_documents"]
+                pages = sorted(list(set([doc.metadata.get("page", 0) + 1 for doc in source_docs]))) if source_docs else []
 
-                    st.session_state.messages.append({"role": "assistant", "content": answer_text, "response_time": time_taken, "pages": pages, "timestamp": current_time})
-                except Exception as e:
-                    st.error(f"Error generating response: {e}")
+                # Ensure final text is displayed (handles greetings/non-streaming cases)
+                message_placeholder.markdown(answer_text)
+
+                current_time = datetime.now().strftime("%H:%M:%S")
+                # Display metadata
+                st.caption(f"🕒 Sent: {current_time}")
+                if time_taken > 0:
+                    st.caption(f"⏱️ Response time: {time_taken:.2f}s")
+                if pages:
+                    st.caption(f"📄 Pages: {', '.join(map(str, pages))}")
+
+                st.session_state.messages.append({"role": "assistant", "content": answer_text, "response_time": time_taken, "pages": pages, "timestamp": current_time})
+            except Exception as e:
+                st.error(f"Error generating response: {e}")
 
 if __name__ == "__main__":
     main()
