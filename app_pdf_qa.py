@@ -190,40 +190,37 @@ def main():
                 st.session_state.stop_requested = False
                 st.rerun()
 
-    # Chat Interface - Display messages
-    chat_container = st.container()
-    with chat_container:
-        for i, message in enumerate(st.session_state.messages):
-            if message["role"] == "user":
-                _, col_msg = st.columns([2, 10])
-                with col_msg:
-                    with st.chat_message("user", avatar="👤"):
-                        st.markdown(message["content"])
-                        if "timestamp" in message:
-                            st.caption(f"🕒 {message['timestamp']}")
-            else:
-                with st.chat_message("assistant", avatar="🤖"):
+    # Chat Interface - Display all messages
+    for i, message in enumerate(st.session_state.messages):
+        if message["role"] == "user":
+            _, col_msg = st.columns([2, 10])
+            with col_msg:
+                with st.chat_message("user", avatar="👤"):
                     st.markdown(message["content"])
-                    # Inline Metadata
-                    meta_text = ""
                     if "timestamp" in message:
-                        meta_text += f"🕒 {message['timestamp']}"
-                    if "response_time" in message and message["response_time"] > 0:
-                        meta_text += f" | ⏱️ {message['response_time']:.2f}s"
+                        st.caption(f"🕒 {message['timestamp']}")
+        else:
+            with st.chat_message("assistant", avatar="🤖"):
+                st.markdown(message["content"])
+                # Inline Metadata
+                meta_text = ""
+                if "timestamp" in message:
+                    meta_text += f"🕒 {message['timestamp']}"
+                if "response_time" in message and message["response_time"] > 0:
+                    meta_text += f" | ⏱️ {message['response_time']:.2f}s"
 
-                    # Layout: Metadata Text | Pages: [1] [2]
-                    if "pages" in message and message["pages"]:
-                        # Fixed ratio layout: Text(4) | Btn(0.5)... | Spacer(5)
-                        cols = st.columns([4] + [0.5] * len(message["pages"]) + [5])
-                        with cols[0]:
-                            st.caption(meta_text + " | 📄 Pages:")
-                        for idx, pg in enumerate(message["pages"]):
-                            if cols[idx+1].button(str(pg), key=f"msg_{i}_{idx}"):
-                                st.session_state.pdf_page = pg
-                                st.session_state.show_right = True
-                                st.rerun()
-                    elif meta_text:
-                        st.caption(meta_text)
+                # Layout: Metadata Text | Pages: [1] [2]
+                if "pages" in message and message["pages"]:
+                    cols = st.columns([4] + [0.5] * len(message["pages"]) + [5])
+                    with cols[0]:
+                        st.caption(meta_text + " | 📄 Pages:")
+                    for idx, pg in enumerate(message["pages"]):
+                        if cols[idx+1].button(str(pg), key=f"msg_{i}_{idx}"):
+                            st.session_state.pdf_page = pg
+                            st.session_state.show_right = True
+                            st.rerun()
+                elif meta_text:
+                    st.caption(meta_text)
 
     # Input area
     if prompt := st.chat_input("Ask a question about your PDF...", disabled=st.session_state.is_generating):
@@ -231,13 +228,13 @@ def main():
         st.session_state.stop_requested = False
         current_time = datetime.now().strftime("%H:%M:%S")
 
+        # Add messages to state
         st.session_state.messages.append({
             "role": "user",
             "content": prompt,
             "timestamp": current_time
         })
 
-        # Pre-append assistant message to state to prevent clearing on Stop
         st.session_state.messages.append({
             "role": "assistant",
             "content": "",
@@ -247,15 +244,16 @@ def main():
         })
         current_msg_index = len(st.session_state.messages) - 1
 
-        # Display user message immediately
-        _, col_msg = st.columns([2, 10])
-        with col_msg:
-            with st.chat_message("user", avatar="👤"):
-                st.markdown(prompt)
-                st.caption(f"🕒 {current_time}")
+        # Trigger rerun to display new messages
+        st.rerun()
 
-        # Generate assistant response
-        with st.chat_message("assistant", avatar="🤖"):
+    # Generate response if currently generating
+    if st.session_state.is_generating and len(st.session_state.messages) > 0:
+        last_msg = st.session_state.messages[-1]
+        if last_msg["role"] == "assistant" and not last_msg["content"]:
+            current_msg_index = len(st.session_state.messages) - 1
+            prompt = st.session_state.messages[-2]["content"]
+
             # Stop button container
             stop_container = st.container()
             with stop_container:
