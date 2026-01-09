@@ -50,12 +50,17 @@ def main():
         font-size: 0.8rem;
         padding: 2px 8px;
     }
-    /* Stop button styling - Floating square button */
-    div:has(span#stop-btn-anchor) + div button {
+    /* Stop button styling - Next to input field */
+    div[data-testid="stChatInput"] {
+        position: relative;
+    }
+    div:has(span#stop-btn-anchor) {
         position: fixed !important;
-        bottom: 18px !important;
-        right: 20px !important;
+        bottom: 58px !important;
+        right: 75px !important;
         z-index: 99999 !important;
+    }
+    div:has(span#stop-btn-anchor) button {
         width: 36px !important;
         height: 36px !important;
         border-radius: 4px !important;
@@ -68,11 +73,12 @@ def main():
         justify-content: center !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
         transition: background-color 0.2s;
+        font-size: 18px !important;
     }
-    div:has(span#stop-btn-anchor) + div button:hover {
+    div:has(span#stop-btn-anchor) button:hover {
         background-color: #ff3333 !important;
     }
-    div:has(span#stop-btn-anchor) + div button:active {
+    div:has(span#stop-btn-anchor) button:active {
         background-color: #cc0000 !important;
     }
     </style>
@@ -81,12 +87,15 @@ def main():
     # Initialize session state
     if "messages" not in st.session_state:
         st.session_state.messages = []
-    
+
     if "engine" not in st.session_state:
         st.session_state.engine = PDFQAEngine(
             model_name=MODEL_CONFIG["model_name"],
             base_url=MODEL_CONFIG["base_url"]
         )
+
+    if "is_generating" not in st.session_state:
+        st.session_state.is_generating = False
     
     # Sidebar for file upload
     with st.sidebar:
@@ -146,20 +155,29 @@ def main():
                 elif meta_text:
                     st.caption(meta_text)
 
+    # Stop button at bottom (next to input) - rendered before chat_input for proper positioning
+    if st.session_state.is_generating:
+        with st.container():
+            st.markdown('<span id="stop-btn-anchor"></span>', unsafe_allow_html=True)
+            if st.button("⏹", key="stop_gen", help="Stop generation"):
+                st.session_state.is_generating = False
+                st.rerun()
+
     if prompt := st.chat_input("Ask a question about your PDF..."):
+        st.session_state.is_generating = True
         current_time = datetime.now().strftime("%H:%M:%S")
         st.session_state.messages.append({"role": "user", "content": prompt, "timestamp": current_time})
-        
+
         # Pre-append assistant message to state to prevent clearing on Stop
         st.session_state.messages.append({
-            "role": "assistant", 
-            "content": "", 
+            "role": "assistant",
+            "content": "",
             "timestamp": datetime.now().strftime("%H:%M:%S"),
             "response_time": 0,
             "pages": []
         })
         current_msg_index = len(st.session_state.messages) - 1
-        
+
         _, col_msg = st.columns([2, 10])
         with col_msg:
             with st.chat_message("user", avatar="👤"):
@@ -170,20 +188,10 @@ def main():
             try:
                 message_placeholder = st.empty()
                 stream_handler = StreamHandler(message_placeholder, message_context=st.session_state.messages[current_msg_index])
-                
-                # Placeholder for Stop button
-                stop_placeholder = st.empty()
-                with stop_placeholder:
-                    st.markdown('<span id="stop-btn-anchor"></span>', unsafe_allow_html=True)
-                    if st.button("⏹", key="stop_gen", help="Stop generation"):
-                        st.stop()
 
                 # Show thinking indicator only for initial retrieval
                 with st.spinner("Retrieving relevant context..."):
                     response = st.session_state.engine.answer_question(prompt, callbacks=[stream_handler])
-                
-                # Clear stop button after response is complete
-                stop_placeholder.empty()
 
                 # Parse response
                 answer_text = response["result"]
@@ -198,25 +206,12 @@ def main():
                 st.session_state.messages[current_msg_index]["content"] = answer_text
                 st.session_state.messages[current_msg_index]["response_time"] = time_taken
                 st.session_state.messages[current_msg_index]["pages"] = pages
-                
-                # Inline Metadata
-                meta_text = f"🕒 {st.session_state.messages[current_msg_index]['timestamp']}"
-                if time_taken > 0: meta_text += f" | ⏱️ {time_taken:.2f}s"
-                
-                # Layout for new message
-                if pages:
-                    cols = st.columns([4] + [0.5] * len(pages) + [5])
-                    with cols[0]: 
-                        st.caption(meta_text + " | Pages:")
-                    for idx, pg in enumerate(pages):
-                        if cols[idx+1].button(str(pg), key=f"curr_{idx}"):
-                            st.session_state.pdf_page = pg
-                            st.session_state.show_right = True
-                            st.rerun()
-                else:
-                    st.caption(meta_text)
-                
+
+                # Mark generation complete
+                st.session_state.is_generating = False
+
             except Exception as e:
+                st.session_state.is_generating = False
                 st.error(f"Error generating response: {e}")
 
 if __name__ == "__main__":
