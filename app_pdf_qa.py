@@ -76,8 +76,8 @@ def main():
 
     div:has(span#stop-btn-anchor) {
         position: fixed !important;
-        bottom: 58px !important;
-        right: 75px !important;
+        bottom: 15px !important;
+        right: 15px !important;
         z-index: 99999 !important;
     }
 
@@ -245,9 +245,15 @@ def main():
 
         with st.chat_message("assistant", avatar="🤖"):
             message_placeholder = st.empty()
+            stop_placeholder = st.empty()
 
             try:
                 stream_handler = StreamHandler(message_placeholder, message_context=st.session_state.messages[current_msg_index])
+
+                with stop_placeholder:
+                    st.markdown('<span id="stop-btn-anchor"></span>', unsafe_allow_html=True)
+                    if st.button("⏹", key="stop_gen", help="Stop generation"):
+                        st.stop()
 
                 with st.spinner("🔍 Retrieving relevant context..."):
                     response = st.session_state.engine.answer_question(prompt, callbacks=[stream_handler])
@@ -257,13 +263,17 @@ def main():
                 source_docs = response["source_documents"]
                 pages = sorted(list(set([doc.metadata.get("page", 0) + 1 for doc in source_docs]))) if source_docs else []
 
+                stop_placeholder.empty()
                 message_placeholder.markdown(answer_text)
 
                 st.session_state.messages[current_msg_index]["content"] = answer_text
                 st.session_state.messages[current_msg_index]["response_time"] = time_taken
                 st.session_state.messages[current_msg_index]["pages"] = pages
+                
+                st.rerun()
 
             except Exception as e:
+                stop_placeholder.empty()
                 st.error(f"⚠️ Error: {str(e)}")
 
 if __name__ == "__main__":
