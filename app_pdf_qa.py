@@ -155,14 +155,6 @@ def main():
                 elif meta_text:
                     st.caption(meta_text)
 
-    # Stop button at bottom (next to input) - rendered before chat_input for proper positioning
-    if st.session_state.is_generating:
-        with st.container():
-            st.markdown('<span id="stop-btn-anchor"></span>', unsafe_allow_html=True)
-            if st.button("⏹", key="stop_gen", help="Stop generation"):
-                st.session_state.is_generating = False
-                st.rerun()
-
     if prompt := st.chat_input("Ask a question about your PDF..."):
         st.session_state.is_generating = True
         current_time = datetime.now().strftime("%H:%M:%S")
@@ -185,9 +177,20 @@ def main():
                 st.caption(f"🕒 {current_time}")
 
         with st.chat_message("assistant", avatar="🤖"):
+            # Stop button container
+            stop_container = st.container()
+            with stop_container:
+                st.markdown('<span id="stop-btn-anchor"></span>', unsafe_allow_html=True)
+                stop_btn = st.button("⏹", key="stop_gen", help="Stop generation")
+
             try:
                 message_placeholder = st.empty()
                 stream_handler = StreamHandler(message_placeholder, message_context=st.session_state.messages[current_msg_index])
+
+                # Check if stop was clicked
+                if stop_btn:
+                    st.session_state.is_generating = False
+                    st.stop()
 
                 # Show thinking indicator only for initial retrieval
                 with st.spinner("Retrieving relevant context..."):
@@ -207,11 +210,13 @@ def main():
                 st.session_state.messages[current_msg_index]["response_time"] = time_taken
                 st.session_state.messages[current_msg_index]["pages"] = pages
 
-                # Mark generation complete
+                # Mark generation complete and clear stop button
                 st.session_state.is_generating = False
+                stop_container.empty()
 
             except Exception as e:
                 st.session_state.is_generating = False
+                stop_container.empty()
                 st.error(f"Error generating response: {e}")
 
 if __name__ == "__main__":
