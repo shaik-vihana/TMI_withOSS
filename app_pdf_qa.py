@@ -74,10 +74,16 @@ def main():
         position: relative;
     }
 
+    /* Hide the default send button when stop button is active */
+    body:has(span#stop-btn-anchor) [data-testid="stChatInput"] button {
+        display: none !important;
+    }
+
+    /* Position the stop button exactly where the send button was */
     div:has(span#stop-btn-anchor) {
         position: fixed !important;
-        bottom: 15px !important;
-        right: 15px !important;
+        bottom: 18px !important;
+        right: 18px !important;
         z-index: 99999 !important;
     }
 
