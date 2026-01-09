@@ -41,24 +41,28 @@ def main():
     }
     /* Stop button styling - Floating square button */
     div:has(> span#stop-btn-anchor) + div button {
-        position: fixed;
-        bottom: 28px;
-        right: 3rem;
-        z-index: 10000;
-        width: 2.5rem !important;
-        height: 2.5rem !important;
+        position: fixed !important;
+        bottom: 18px !important;
+        right: 20px !important;
+        z-index: 99999 !important;
+        width: 36px !important;
+        height: 36px !important;
         border-radius: 4px !important;
-        background-color: #ff4b4b;
-        color: white;
-        border: none;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        background-color: #ff4b4b !important;
+        color: white !important;
+        border: none !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+        transition: background-color 0.2s;
     }
     div:has(> span#stop-btn-anchor) + div button:hover {
-        background-color: #ff3333;
+        background-color: #ff3333 !important;
+    }
+    div:has(> span#stop-btn-anchor) + div button:active {
+        background-color: #cc0000 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -145,7 +149,8 @@ def main():
                 stop_placeholder = st.empty()
                 with stop_placeholder:
                     st.markdown('<span id="stop-btn-anchor"></span>', unsafe_allow_html=True)
-                    st.button("⏹", key="stop_gen", help="Stop generation")
+                    if st.button("⏹", key="stop_gen", help="Stop generation"):
+                        st.stop()
 
                 # Show thinking indicator only for initial retrieval
                 with st.spinner("Retrieving relevant context..."):
