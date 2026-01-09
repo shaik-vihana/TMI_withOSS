@@ -27,6 +27,16 @@ class StreamHandler(BaseCallbackHandler):
 def main():
     st.title("📄 Chat with PDF")
     
+    # Custom CSS for chat styling
+    st.markdown("""
+    <style>
+    /* Style for inline metadata */
+    .stCaption {
+        display: inline-block;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     # Initialize session state
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -67,23 +77,25 @@ def main():
 
     # Chat Interface
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
+        avatar = "🤖" if message["role"] == "assistant" else "👤"
+        with st.chat_message(message["role"], avatar=avatar):
             st.markdown(message["content"])
-            if "timestamp" in message:
-                st.caption(f"🕒 Sent: {message['timestamp']}")
-            if "response_time" in message and message["response_time"] > 0:
-                st.caption(f"⏱️ Response time: {message['response_time']:.2f}s")
-            if "pages" in message and message["pages"]:
-                st.caption(f"📄 Pages: {', '.join(map(str, message['pages']))}")
+            
+            # Inline Metadata
+            meta = []
+            if "timestamp" in message: meta.append(f"🕒 {message['timestamp']}")
+            if "response_time" in message and message["response_time"] > 0: meta.append(f"⏱️ {message['response_time']:.2f}s")
+            if "pages" in message and message["pages"]: meta.append(f"📄 Pages: {', '.join(map(str, message['pages']))}")
+            if meta: st.caption(" | ".join(meta))
 
     if prompt := st.chat_input("Ask a question about your PDF..."):
         current_time = datetime.now().strftime("%H:%M:%S")
         st.session_state.messages.append({"role": "user", "content": prompt, "timestamp": current_time})
-        with st.chat_message("user"):
+        with st.chat_message("user", avatar="👤"):
             st.markdown(prompt)
             st.caption(f"🕒 Sent: {current_time}")
 
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar="🤖"):
             try:
                 message_placeholder = st.empty()
                 stream_handler = StreamHandler(message_placeholder)
@@ -102,12 +114,12 @@ def main():
                 message_placeholder.markdown(answer_text)
 
                 current_time = datetime.now().strftime("%H:%M:%S")
-                # Display metadata
-                st.caption(f"🕒 Sent: {current_time}")
-                if time_taken > 0:
-                    st.caption(f"⏱️ Response time: {time_taken:.2f}s")
-                if pages:
-                    st.caption(f"📄 Pages: {', '.join(map(str, pages))}")
+                
+                # Inline Metadata
+                meta = [f"🕒 {current_time}"]
+                if time_taken > 0: meta.append(f"⏱️ {time_taken:.2f}s")
+                if pages: meta.append(f"📄 Pages: {', '.join(map(str, pages))}")
+                st.caption(" | ".join(meta))
 
                 st.session_state.messages.append({"role": "assistant", "content": answer_text, "response_time": time_taken, "pages": pages, "timestamp": current_time})
             except Exception as e:
