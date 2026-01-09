@@ -223,18 +223,11 @@ def main():
                     st.caption(meta_text)
 
     # Input area
-    if prompt := st.chat_input("Ask a question about your PDF...", disabled=st.session_state.is_generating):
-        st.session_state.is_generating = True
-        st.session_state.stop_requested = False
+    if prompt := st.chat_input("Ask a question about your PDF..."):
         current_time = datetime.now().strftime("%H:%M:%S")
+        st.session_state.messages.append({"role": "user", "content": prompt, "timestamp": current_time})
 
-        # Add messages to state
-        st.session_state.messages.append({
-            "role": "user",
-            "content": prompt,
-            "timestamp": current_time
-        })
-
+        # Pre-append assistant message to state
         st.session_state.messages.append({
             "role": "assistant",
             "content": "",
@@ -244,75 +237,34 @@ def main():
         })
         current_msg_index = len(st.session_state.messages) - 1
 
-        # Trigger rerun to display new messages
-        st.rerun()
+        _, col_msg = st.columns([2, 10])
+        with col_msg:
+            with st.chat_message("user", avatar="👤"):
+                st.markdown(prompt)
+                st.caption(f"🕒 {current_time}")
 
-    # Generate response if currently generating
-    if st.session_state.is_generating and len(st.session_state.messages) > 0:
-        last_msg = st.session_state.messages[-1]
-        if last_msg["role"] == "assistant" and not last_msg["content"]:
-            current_msg_index = len(st.session_state.messages) - 1
-            prompt = st.session_state.messages[-2]["content"]
-
-            # Stop button container
-            stop_container = st.container()
-            with stop_container:
-                st.markdown('<span id="stop-btn-anchor"></span>', unsafe_allow_html=True)
-                stop_btn = st.button("⏹", key="stop_gen", help="Stop generation")
-
-            # Check if stop was clicked before starting
-            if stop_btn:
-                st.session_state.is_generating = False
-                st.session_state.stop_requested = True
-                stop_container.empty()
-                st.stop()
-
+        with st.chat_message("assistant", avatar="🤖"):
             message_placeholder = st.empty()
 
             try:
-                # Create stream handler with message context
-                stream_handler = StreamHandler(
-                    message_placeholder,
-                    message_context=st.session_state.messages[current_msg_index]
-                )
+                stream_handler = StreamHandler(message_placeholder, message_context=st.session_state.messages[current_msg_index])
 
-                # Show context retrieval spinner
                 with st.spinner("🔍 Retrieving relevant context..."):
-                    response = st.session_state.engine.answer_question(
-                        prompt,
-                        callbacks=[stream_handler]
-                    )
+                    response = st.session_state.engine.answer_question(prompt, callbacks=[stream_handler])
 
-                # Parse and finalize response
                 answer_text = response["result"]
                 time_taken = response["response_time"]
                 source_docs = response["source_documents"]
-                pages = sorted(list(set([
-                    doc.metadata.get("page", 0) + 1
-                    for doc in source_docs
-                ]))) if source_docs else []
+                pages = sorted(list(set([doc.metadata.get("page", 0) + 1 for doc in source_docs]))) if source_docs else []
 
-                # Final display without cursor
                 message_placeholder.markdown(answer_text)
 
-                # Update session state with complete metadata
-                st.session_state.messages[current_msg_index].update({
-                    "content": answer_text,
-                    "response_time": time_taken,
-                    "pages": pages
-                })
-
-                # Clean up
-                st.session_state.is_generating = False
-                stop_container.empty()
+                st.session_state.messages[current_msg_index]["content"] = answer_text
+                st.session_state.messages[current_msg_index]["response_time"] = time_taken
+                st.session_state.messages[current_msg_index]["pages"] = pages
 
             except Exception as e:
-                st.session_state.is_generating = False
-                stop_container.empty()
-
-                error_msg = f"⚠️ Error: {str(e)}"
-                message_placeholder.error(error_msg)
-                st.session_state.messages[current_msg_index]["content"] = error_msg
+                st.error(f"⚠️ Error: {str(e)}")
 
 if __name__ == "__main__":
     main()
