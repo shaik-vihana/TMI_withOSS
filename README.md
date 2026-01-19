@@ -1,6 +1,6 @@
 # PDF Chat with Mistral 7B
 
-A local PDF chat application using **Mistral 7B**, **Ollama**, **LangChain**, and **Streamlit**.
+A local PDF chat application using **Mistral 7B**, **Ollama**, **LangChain**, and **Streamlit** .
 
 ## Features
 
