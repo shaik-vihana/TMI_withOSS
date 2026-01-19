@@ -11,7 +11,7 @@ chmod +x setup.sh
 ```
 
 The setup script will:
-- ✅ Check Python version
+- ✅   Check Python version
 - ✅ Create virtual environment
 - ✅ Install llama-cpp-python with CUDA support (if GPU available)
 - ✅ Install all dependencies
